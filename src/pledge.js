@@ -4,6 +4,30 @@ Promises Workshop: build the pledge.js ES6-style promise library
 ----------------------------------------------------------------*/
 // YOUR CODE HERE:
 
+function $Promise(executor){
+    if (typeof executor !== 'function'){
+        throw new TypeError ('executor is not a function')
+    };
+
+    this._state = 'pending';
+    this._internalResolve = function(data){
+        if (this._state == 'pending'){
+            this._state = 'fulfilled'
+            this._value = data;
+        };
+    };
+    this._internalReject = function(reason){
+        if (this._state == 'pending'){
+            this._state = 'rejected'
+            this._value = reason;
+        }
+    };
+    executor(this._internalResolve.bind(this), this._internalReject.bind(this))
+
+
+        
+}
+
 
 
 
