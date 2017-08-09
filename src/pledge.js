@@ -23,6 +23,8 @@ function $Promise(executor){
             this._state = 'rejected'
             this._value = reason;
         }
+        if (!this._handlerGroups.length) return;
+        else this._callHandlers();
     };
     executor(this._internalResolve.bind(this), this._internalReject.bind(this))
 
@@ -36,7 +38,16 @@ $Promise.prototype._callHandlers = function() {
       this._handlerGroups[0].successCb(this._value)
       this._handlerGroups.shift()
     }
+  } else if (this._state == 'rejected'){
+    while (this._handlerGroups.length) {
+      if (typeof this._handlerGroups[0].errorCb !== 'function') return;
+      this._handlerGroups[0].errorCb(this._value)
+      this._handlerGroups.shift()
+    }
   }
+}
+$Promise.prototype.catch = function(func){
+    this.then(null, func);
 }
 //constructor function
 $Promise.prototype.then = function(successCb, errorCb){
@@ -48,6 +59,8 @@ $Promise.prototype.then = function(successCb, errorCb){
 
   this._callHandlers();
 }
+
+
 
 
 
