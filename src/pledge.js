@@ -10,28 +10,63 @@ function $Promise(executor){
     };
     this._handlerGroups= [];
     this._state = 'pending';
-    this._internalResolve = function(data){
-        if (this._state == 'pending'){
-            this._state = 'fulfilled'
-            this._value = data;
-        };
-        if (!this._handlerGroups.length) return;
-        else this._callHandlers();
-    };
-    this._internalReject = function(reason){
-        if (this._state == 'pending'){
-            this._state = 'rejected'
-            this._value = reason;
-        }
-        if (!this._handlerGroups.length) return;
-        else this._callHandlers();
-    };
+
+
     executor(this._internalResolve.bind(this), this._internalReject.bind(this))
 
 }
+$Promise.prototype._internalResolve = function(data){
+  if (this._state == 'pending'){
+      this._state = 'fulfilled'
+      this._value = data;
+  };
+  if (!this._handlerGroups.length) return;
+  else if (this._handlerGroups[0].downstreamPromise) {
+    this._handlerGroups[0].downstreamPromise._internalResolve(this._value)
+  }
+  this._callHandlers();
+};
+
+$Promise.prototype._internalReject = function(reason){
+  if (this._state == 'pending'){
+    this._state = 'rejected'
+    this._value = reason;
+  }
+  if (!this._handlerGroups.length) return;
+  else if (this._handlerGroups[0].downstreamPromise) {
+    this._handlerGroups[0].downstreamPromise._internalReject(this._value)
+  }
+  this._callHandlers();
+};
 
 $Promise.prototype._callHandlers = function() {
-  // console.log(this._handlerGroups);
+  // if (this.state === 'pending') return;
+  // this._handlerGroups.forEach(handler => {
+  //   let cb = handler[this._state === 'fulfilled' ? 'successCb' : 'errorCb'];
+  //   if(cb) {
+  //     try{
+  //       let value = cb(this._value);
+  //       if (value instanceof $Promise) {
+  //         value.then(
+  //           handler.downstreamPromise._internalResolve.bind(handler.downstreamPromise)
+  //           handler.downstreamPromise._internalReject.bind(handler.downstreamPromise)
+  //         )
+  //       } else {
+  //         handler.downstreamPromise._internalResolve(value);
+  //       }
+  //     }
+  //     catch(err){
+  //       handler.downstreamPromise._internalReject(err);
+  //     }
+  //   } else {
+  //     if(this._state === 'fulfilled') {
+  //       handler.downstreamPromise._internalResolve(this._value)
+  //     } else {
+  //       handler.downstreamPromise._internalReject(this._value)
+  //     }
+  //   }
+  // }, this);
+  // this._handlerGroups = [];
   if (this._state == 'fulfilled') {
     while (this._handlerGroups.length) {
       if (typeof this._handlerGroups[0].successCb !== 'function') return;
@@ -46,18 +81,19 @@ $Promise.prototype._callHandlers = function() {
     }
   }
 }
+
 $Promise.prototype.catch = function(func){
-    this.then(null, func);
+  return this.then(null, func);
 }
-//constructor function
+
 $Promise.prototype.then = function(successCb, errorCb){
   if (typeof successCb !== 'function') successCb = null;
   if (typeof errorCb !== 'function') errorCb = null;
-  this._handlerGroups.push({'successCb': successCb, 'errorCb': errorCb})
-  // console.log('state in then', this._state)
-  if (this._state == 'pending') return;
-
+  let downstreamPromise = new $Promise(function(){});
+  // downstreamPromise._internalResolve(this._callHandlers)
+  this._handlerGroups.push({'successCb': successCb, 'errorCb': errorCb, 'downstreamPromise': downstreamPromise})
   this._callHandlers();
+  return downstreamPromise;
 }
 
 
